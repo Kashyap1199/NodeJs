@@ -4,7 +4,18 @@ const employee = require('../models/employee-model');
 const { setErrorInTextFile } = require('../errortext');
 const { generateToken } = require('../jwt');
 const bcrypt = require('bcrypt');
-const { addLoginAttempt, addUpdateLoginLockoutStatus, isUserLockedOut } = require('../login-attempt');
+const { addLoginAttempt,
+  addUpdateLoginLockoutStatus,
+  isUserLockedOut,
+  getRemainingTimeForLockoutStatusByUserId,
+  resetLoginLockoutStatusByUserId,
+  isLoginLockoutsStatusIsExpired,
+  getLoginLockoutStatusUserById
+} = require('../login-attempt');
+const { MAX_LOGIN_ATTEMPTS,
+  LOGIN_LOCKOUT_DURATION_MINUTES,
+  MIN_LOGIN_ATTEMPTS_WARNING
+ } = require('.././constant/login-attempt.constants');
 
 /**
  * @swagger
@@ -47,17 +58,28 @@ routes.post('/getToken', async (req, res) => {
     // checking employee is exists or not
     const user = await employee.findOne({ userName: userName });
 
+    if(await isLoginLockoutsStatusIsExpired(user.id))
+      await resetLoginLockoutStatusByUserId(user.id)
+
+    if (await isUserLockedOut(user.id)) {
+      const time = await getRemainingTimeForLockoutStatusByUserId(user.id);
+      return res.status(500).json({ error: `User is locked out, please try after ${time}` });
+    }
+
     if (!user) {
         setErrorInTextFile({ errorName: "User not found", errorMessage: "User not found !", date: new Date().toLocaleString(), route: req.originalUrl, method: req.method });
         await addLoginAttempt(userName, req.ip, req.get('User-Agent'), false, null, "UserNotFound");
         return res.status(404).json({ error: "User not found. Please register first." });
     } else if (!(await user.comparedPassword(password))) {
         setErrorInTextFile({ errorName: "Invalid credentials", errorMessage: "Username or password incorrect", date: new Date().toLocaleString(), route: req.originalUrl, method: req.method });
-        if (await isUserLockedOut(user.id)) {
-          return res.status(500).json({ error: "User is locked out, please try after 30 minutes." });
-        }
         await addLoginAttempt(userName, req.ip, req.get('User-Agent'), false, user.id, "InvalidCredentials");
         await addUpdateLoginLockoutStatus(user.id, false); // Log lockout status for existing user
+        const userLockStatus = await getLoginLockoutStatusUserById(user.id);
+        if (userLockStatus.failedAttemptCount == MIN_LOGIN_ATTEMPTS_WARNING) {
+          return res.status(401).json({ error: "Invalid username or password. You have used 2 of 5 allowed login attempts. Your account will be locked after 3 more failed attempt." });
+        } else if(userLockStatus.failedAttemptCount == MAX_LOGIN_ATTEMPTS) {
+          return res.status(401).json({ error: "Invalid username or password. You have reached allowed login attempts. Your account is locked try after 30 minutes." });
+        }
         return res.status(401).json({ error: "Username or password incorrect" });
     }
 

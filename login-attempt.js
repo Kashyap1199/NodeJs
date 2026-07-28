@@ -1,6 +1,9 @@
 const { setErrorInTextFile } = require('./errortext');
 const LoginAttemptLogModel = require('./models/login-attempt-log-model');
 const LoginLockoutStatusModel = require('./models/login-lockout-status-model');
+const {
+  LOGIN_LOCKOUT_DURATION_MINUTES
+ } = require('./constant/login-attempt.constants');
 
 const addLoginAttempt = async (userName, ipAddress, userAgent, isSuccess, loginUserId = null, failedReason = null) => {
     try {
@@ -13,6 +16,12 @@ const addLoginAttempt = async (userName, ipAddress, userAgent, isSuccess, loginU
             failedReason: failedReason
         });
         await loginAttempt.save();
+
+        if (isSuccess) {
+          const user = await getLoginLockoutStatusUserById(loginUserId);
+          user.lastSuccessfulLoginDate = loginAttempt.attemptDate;
+          await user.save();
+        }
     } catch (err) {
         console.error('Error in addLoginAttempt:', err);
         setErrorInTextFile({ errorName: err.name, errorMessage: err.message, date: new Date().toLocaleString() });
@@ -33,8 +42,8 @@ const addUpdateLoginLockoutStatus = async (userId, isLocked) => {
         lockoutStatusUser.lastSuccessfulLoginDate = sucessAttempt?.attemptDate ?? null;
         if (lockoutStatusUser.remainingAttempts == 0) {
           lockoutStatusUser.isLocked = true;
-          lockoutStatusUser.lockoutStartDate = new Date().getMinutes();
-          lockoutStatusUser.lockoutEndDate = lockoutStatusUser.lockoutStartDate + new Date().add
+          lockoutStatusUser.lockoutStartDate = new Date();
+          lockoutStatusUser.lockoutEndDate = new Date(Date.now() + LOGIN_LOCKOUT_DURATION_MINUTES * 60 * 1000); // minutes, seconds, miliseconds
         }
         await lockoutStatusUser.save();
       } else {
@@ -86,9 +95,69 @@ const isUserLockedOut = async (userId) => {
     }
 };
 
+const resetLoginLockoutStatusByUserId = async (userId) => {
+  try {
+    const user = await getLoginLockoutStatusUserById(userId);
+    user.isLocked = false;
+    user.failedAttemptCount = 0;
+    user.remainingAttempts = 5;
+    user.lockoutStartDate = null;
+    user.lockoutEndDate = null;
+    await user.save();
+  } catch(err) {
+    console.error('Error in resetLoginLockoutStatusByUserId:', err);
+    setErrorInTextFile({ errorName: err.name, errorMessage: err.message, date: new Date().toLocaleString() });
+  }
+}
+
+const getRemainingTimeForLockoutStatusByUserId = async (userId) => {
+  try {
+    const user = await getLoginLockoutStatusUserById(userId);
+
+    const now = new Date();
+    const endTime = new Date(user.lockoutEndDate);
+    const remainingMs = endTime - now;
+
+    if (remainingMs > 0) {
+        const minutes = Math.floor(remainingMs / (1000 * 60));
+        console.log(`${minutes} minutes`);
+        return `${minutes} minutes`
+    }
+
+    return null;
+  } catch(err) {
+    console.error('Error in getRemainingTimeForLockoutStatusByUserId:', err);
+    setErrorInTextFile({ errorName: err.name, errorMessage: err.message, date: new Date().toLocaleString() });
+  }
+}
+
+const isLoginLockoutsStatusIsExpired = async (userId) => {
+  try {
+    const user = await getLoginLockoutStatusUserById(userId);
+    if (user.lockoutEndDate) {
+      const now = new Date();
+      const endTime = new Date(user.lockoutEndDate);
+      const remainingMs = endTime - now;
+      if (remainingMs > 0) {
+        return false;
+      } else {
+        return true;
+      }
+    }
+    return false;
+  } catch(err) {
+    console.error('Error in isLoginLockoutsStatusIsExpired:', err);
+    setErrorInTextFile({ errorName: err.name, errorMessage: err.message, date: new Date().toLocaleString() });
+  }
+}
+
 module.exports = {
     addLoginAttempt,
     getLoginAttemptUser,
     addUpdateLoginLockoutStatus,
-    isUserLockedOut
+    isUserLockedOut,
+    getLoginLockoutStatusUserById,
+    resetLoginLockoutStatusByUserId,
+    getRemainingTimeForLockoutStatusByUserId,
+    isLoginLockoutsStatusIsExpired
 };
