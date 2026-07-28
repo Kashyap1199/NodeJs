@@ -9,7 +9,7 @@ const jwtMiddleWare = (req, res, next) => {
     // console.log('autho ', authorizations);
     if(!authorizations) {
         setErrorInTextFile({ errorName: "JWT Token" , errorMessage: "Token not found", date: new Date().toLocaleString(), route: req.originalUrl, method: req.method });
-        return res.status(404).json({ error: "Token not found" }); 
+        return res.status(404).json({ error: "Token not found" });
     }
 
     // getting token from authorization
@@ -26,13 +26,13 @@ const jwtMiddleWare = (req, res, next) => {
     } catch (err) {
         setErrorInTextFile({ errorName: err.name, errorMessage: err.message, date: new Date().toLocaleString(), route: req.originalUrl, method: req.method });
         // setErrorLog({ errorName: err.name, errorMessage: err.message, date: new Date().toLocaleString(), route: req.originalUrl, method: req.method });
-        res.status(500).json({ errorName: err.name, errorMessage: err.message });
+        res.status(401).json({ errorName: err.name, errorMessage: err.message });
     }
 }
 
 // create JWT token of employee
-function generateToken(username) {
-    const jwtToken = jwt.sign(username, "123", { expiresIn: 30000 }); // 123 is secret key
+function generateToken(payload) {
+    const jwtToken = jwt.sign(payload, "123", { expiresIn: 30000 }); // 123 is secret key
     return jwtToken;
 }
 

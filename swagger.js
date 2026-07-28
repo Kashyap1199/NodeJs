@@ -1,21 +1,24 @@
 const swaggerJSdoc = require('swagger-jsdoc');
+const version = require('./package.json').version;
+const description = require('./package.json').description;
+const port = process.env.PORT;
 
 const options = {
     definition: {
         openapi: '3.0.0',
         info: {
             title: 'Node js API',
-            version: '1.0.0',
-            description: 'This is first API using Node JS application'
+            version: version,
+            description: description
         },
         // for different servers: localhost for development and may have different server like production, test , qa etc...
         servers: [
             {
-                url: 'http://localhost:3000/',
+                url: `http://localhost:${port}/`,
                 description: 'local server for development'
             }
         ],
-        // for authorizations: pass jwt token to getting the data after authenticate 
+        // for authorizations: pass jwt token to getting the data after authenticate
         components: {
             securitySchemes: {
                 BearerAuth: {
@@ -23,9 +26,13 @@ const options = {
                     scheme: 'bearer'
                 }
             }
-        } 
+        }
     },
-    apis: ['./routes/employeesRoutes.js'],
+    apis: [
+        './routes/loginRoutes.js',
+        './routes/employeesRoutes.js',
+        './routes/dashboardRutes.js'
+    ],
 };
 
 const swaggerJSPac = swaggerJSdoc(options);

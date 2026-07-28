@@ -1,20 +1,21 @@
 const express = require('express');
 const routes = express.Router();
-const employee = require('./../models/employee');
-const { jwtMiddleWare, generateToken } = require('../jwt');
+const employee = require('../models/employee-model');
+const { jwtMiddleWare } = require('../jwt');
 const { setErrorInTextFile } = require('../errortext');
 const bcrypt = require('bcrypt');
 const { upload } = require('../multer');
 const fs = require('fs');
+const adminModel = require('../models/admin-model');
 
 /**
  * @swagger
- * /api/employee/:
+ * /api/employee/getEmployees:
  *   get:
  *     security:
- *           - BearerAuth: [] 
+ *           - BearerAuth: []
  *     tags:
- *        - Employee   
+ *        - Employee
  *     summary: Get a list of employees
  *     description: Retrieve a list of employees from the database.
  *     parameters:
@@ -35,28 +36,35 @@ const fs = require('fs');
  *            default: firstName
  *            schema:
  *                type: string
+ *          - in: query
+ *            name: sortOrder
+ *            default: asc
+ *            schema:
+ *                type: string
  *     responses:
  *       200:
  *         description: Successful response with a list of employees
  *       400:
  *         description: Response with Bad request
  *       404:
- *         description: Response with not found like token 
+ *         description: Response with not found like token
  *       500:
  *         description: Response with Internal server error
- *      
+ *
  */
 
 // get method
-routes.get('/', jwtMiddleWare, async function (req, res) {
+routes.get('/getEmployees', jwtMiddleWare, async function (req, res) {
     try {
         const pageNo = parseInt(req.query.pageNo);
         const pageSize = parseInt(req.query.pageSize);
         const sortColumn = req.query.sortColumn;
+        const sortOrder = req.query.sortOrder;
         const skipRecords = pageNo == 1 ? 0 : (pageNo - 1) * pageSize;
-        const totalRecords = await employee.countDocuments({});
-        const data = await employee.find().limit(pageSize).skip(skipRecords).sort(sortColumn);
-        res.status(200).json({ data, pageNo, pageSize, totalRecords });
+        const totalRecords = await employee.countDocuments({ role: '6a67595b6bec46b8c9099297' });
+        const data = await employee.find({ role: '6a67595b6bec46b8c9099297' }).limit(pageSize).skip(skipRecords).sort({ [sortColumn]: sortOrder });
+        const displayColumns = ["firstName", "lastName", "role", "emailId", "gender"];
+        res.status(200).json({ data, pageNo, pageSize, totalRecords, displayColumns });
     } catch (err) {
         console.log(err);
         setErrorInTextFile({ errorName: err.name, errorMessage: err.message, date: new Date().toLocaleString(), route: req.originalUrl, method: req.method });
@@ -66,10 +74,10 @@ routes.get('/', jwtMiddleWare, async function (req, res) {
 
 /**
  * @swagger
- * /api/employee:
+ * /api/employee/addEmployee:
  *      post:
  *          tags:
- *               - Employee 
+ *               - Employee
  *          summary: Get new inserted employee
  *          description: Get new inserted employee
  *          requestBody:
@@ -79,10 +87,10 @@ routes.get('/', jwtMiddleWare, async function (req, res) {
  *                      schema:
  *                        type: object
  *                        properties:
- *                              firstName: 
+ *                              firstName:
  *                                  type: string
  *                                  required: true
- *                              lastName: 
+ *                              lastName:
  *                                   type: string
  *                                   required: true
  *                              emailId:
@@ -93,37 +101,56 @@ routes.get('/', jwtMiddleWare, async function (req, res) {
  *                                   type: number
  *                                   required: true
  *                                   unique: true
- *                              designation: 
+ *                              designation:
  *                                   type: string
  *                                   required: true
- *                              userName: 
+ *                              userName:
  *                                   type: string
  *                                   required: true
  *                                   unique: true
- *                              password: 
+ *                              password:
  *                                   type: string
  *                                   required: true
  *                              image:
  *                                   type: string
+ *                              role:
+ *                                  type: string
+ *                                  required: true
+ *                              gender:
+ *                                  type: string
+ *                                  required: true
+ *                              age:
+ *                                  type: number
+ *                                  required: true
+ *                              address:
+ *                                  type: string
+ *                                  required: true
+ *                              joiningDate:
+ *                                  type: string
+ *                                  required: true
+ *                              salary:
+ *                                  type: number
+ *                                  required: true
+ *
  *          responses:
- *              200: 
+ *              200:
  *                  description: Success response with the retrive new inserted employee
  *              400:
  *                  description: Response with Bad request
  *              404:
- *                  description: Response with not found like token 
+ *                  description: Response with not found like token
  *              500:
  *                  description: Response with Internal server error
  */
 
 // post method
-routes.post('/', upload.single('image'), async (req, res) => {
+routes.post('/addEmployee', upload.single('image'), async (req, res) => {
     try {
         const data = req.body;
         const newEmployee = new employee(data);
-
+        newEmployee.isActive = true;
         // if image/file is exists then converting in base64
-        if (req.file) {  
+        if (req.file) {
             const employeeImage = fs.readFileSync(req.file.path);
             newEmployee.image = {
                 imageBase64: employeeImage.toString('base64'),  // converting image in base64 format
@@ -142,20 +169,20 @@ routes.post('/', upload.single('image'), async (req, res) => {
 
 /**
  * @swagger
- * /api/employee/{designationType}:
+ * /api/employee/designation/{designationType}:
  *      get:
  *          security:
  *              - BearerAuth: []
  *          tags:
- *               - Employee 
- *          summary: Get employee 
+ *               - Employee
+ *          summary: Get employee
  *          description: Get employee matches with designationType
  *          parameters:
  *              - in: path
  *                name: designationType
  *                required: true
  *                schema:
- *                  type: string 
+ *                  type: string
  *              - in: query
  *                name: pageNo
  *                required: true
@@ -166,28 +193,28 @@ routes.post('/', upload.single('image'), async (req, res) => {
  *                name: pageSize
  *                required: true
  *                schema:
- *                  type: string      
+ *                  type: string
  *                default: 5
  *          responses:
- *              200: 
+ *              200:
  *                  description: Success response with the retrive new inserted employees
  *              400:
  *                  description: Response with Bad request
  *              404:
- *                  description: Response with not found like token 
+ *                  description: Response with not found like token
  *              500:
  *                  description: Response with Internal server error
  */
 
 // get method - getting data based on matches on designation
-routes.get('/:designationType', jwtMiddleWare, async (req, res) => {
+routes.get('/designation/:designationType', jwtMiddleWare, async (req, res) => {
     try {
         const designationType = req.params.designationType;
         const pageNo = parseInt(req.query.pageNo);
         const pageSize = parseInt(req.query.pageSize);
         const skipRecords = pageNo == 1 ? 0 : (pageNo - 1) * pageSize;
         const totalRecords = await employee.countDocuments({ designation: designationType });
-        if (designationType === 'Developer' || designationType === 'Tester' || designationType === 'Team leader' || designationType === 'Designer') {
+        if (designationType === 'Developer' || designationType === 'Tester' || designationType === 'Team leader' || designationType === 'Designer' || designationType === 'Project Manager') {
             const data = await employee.find({ designation: designationType }).limit(pageSize).skip(skipRecords);
             res.status(200).json({ data, pageNo, pageSize, totalRecords });
         } else {
@@ -203,12 +230,12 @@ routes.get('/:designationType', jwtMiddleWare, async (req, res) => {
 
 /**
  * @swagger
- * /api/employee/{id}:
+ * /api/employee/updateEmployee/{id}:
  *      put:
  *          security:
  *              - BearerAuth: []
  *          tags:
- *               - Employee 
+ *               - Employee
  *          summary: Get updated record
  *          description: Get the new updated record
  *          parameters:
@@ -217,17 +244,17 @@ routes.get('/:designationType', jwtMiddleWare, async (req, res) => {
  *                required: true
  *                schema:
  *                  type: string
- *          requestBody: 
+ *          requestBody:
  *                required: true
- *                content: 
+ *                content:
  *                  application/json:
- *                      schema: 
+ *                      schema:
  *                          type: object
  *                          properties:
- *                                  firstName: 
+ *                                  firstName:
  *                                      type: string
  *                                      required: true
- *                                  lastName: 
+ *                                  lastName:
  *                                      type: string
  *                                      required: true
  *                                  emailId:
@@ -238,29 +265,48 @@ routes.get('/:designationType', jwtMiddleWare, async (req, res) => {
  *                                      type: number
  *                                      required: true
  *                                      unique: true
- *                                  designation: 
+ *                                  designation:
  *                                      type: string
  *                                      required: true
- *                                  userName: 
+ *                                  userName:
  *                                      type: string
  *                                      required: true
- *                                  password: 
+ *                                  password:
  *                                      type: string
- *                                      required: true 
+ *                                      required: true
+ *                                  role:
+ *                                      type: string
+ *                                      required: true
+ *                                  image:
+ *                                      type: string
+ *                                  isActive:
+ *                                      type: boolean
+ *                                  gender:
+ *                                      type: string
+ *                                      required: true
+ *                                  age:
+ *                                      type: number
+ *                                      required: true
+ *                                  joiningDate:
+ *                                      type: string
+ *                                      required: true
+ *                                  salary:
+ *                                      type: number
+ *                                      required: true
  *          responses:
- *              200: 
+ *              200:
  *                  description: Success response with the retrive new inserted employee
  *              400:
  *                  description: Response with Bad request
  *              404:
- *                  description: Response with not found like token 
+ *                  description: Response with not found like token
  *              500:
  *                  description: Response with Internal server error
- *              
+ *
  */
 
 // update method
-routes.put('/:id', jwtMiddleWare, async (req, res) => {
+routes.put('/updateEmployee/:id', jwtMiddleWare, async (req, res) => {
     try {
         const id = req.params.id;
         const updateNewEmployee = req.body;
@@ -278,7 +324,7 @@ routes.put('/:id', jwtMiddleWare, async (req, res) => {
 
         if (!response) {
             setErrorInTextFile({ errorName: "Update Record", errorMessage: "Not found", date: new Date().toLocaleString(), route: req.originalUrl, method: req.method });
-            return res.status(400).json({ message: 'Not found' });
+            return res.status(404).json({ error: 'Not found' });
         }
 
         console.log(response);
@@ -294,18 +340,18 @@ routes.put('/:id', jwtMiddleWare, async (req, res) => {
 
 /**
  * @swagger
- * /api/employee/{id}:
+ * /api/employee/deleteEmployee/{id}:
  *  delete:
  *      security:
  *          - BearerAuth: []
  *      tags:
- *        - Employee   
+ *        - Employee
  *      summary: Delete record by id
  *      description: Get the deleted record by id
  *      parameters:
  *          - in: path
  *            name: id
- *            required: true  
+ *            required: true
  *            schema:
  *              type: string
  *      responses:
@@ -317,11 +363,11 @@ routes.put('/:id', jwtMiddleWare, async (req, res) => {
  *              description: Response with employee not found or token not found
  *          500:
  *              description: Response with internal server error
- *              
+ *
  */
 
 // delete method
-routes.delete('/:id', jwtMiddleWare, async (req, res) => {
+routes.delete('/deleteEmployee/:id', jwtMiddleWare, async (req, res) => {
     try {
         const id = req.params.id;
         const response = await employee.findByIdAndDelete(id, {
@@ -330,7 +376,7 @@ routes.delete('/:id', jwtMiddleWare, async (req, res) => {
 
         if (!response) {
             setErrorInTextFile({ errorName: "Delete Record", errorMessage: "Not found", date: new Date().toLocaleString(), route: req.originalUrl, method: req.method });
-            return res.status(404).json({ message: 'Not found' });
+            return res.status(404).json({ error: 'Not found' });
         }
 
         console.log(response);
@@ -339,70 +385,6 @@ routes.delete('/:id', jwtMiddleWare, async (req, res) => {
         // res.status(200).json(response);
     } catch (err) {
         console.log(err);
-        setErrorInTextFile({ errorName: err.name, errorMessage: err.message, date: new Date().toLocaleString(), route: req.originalUrl, method: req.method });
-        res.status(500).json({ errorName: err.name, errorMessage: err.message });
-    }
-})
-
-/**
- * @swagger
- * /api/employee/login:
- *  post:
- *          tags:
- *            - Employee
- *          summary: Get the token with registered employee
- *          description: Will get the token of JWT
- *          requestBody:
- *              required: true
- *              content:
- *                  application/json:
- *                      schema:
- *                          type: object
- *                          properties:
- *                              userName: 
- *                                  type: string
- *                                  required: true
- *                              password:
- *                                  type: string
- *                                  required: true
- *          responses:
- *              200:
- *                  description: Successful response with token
- *              400:
- *                  description: Response with bad request
- *              404: 
- *                  description: Response with employee not found 
- *              500:
- *                  description: Response with internal server error
- *                              
- */
-
-// login
-routes.post('/login', async (req, res) => {
-
-    // taking credentials
-    const { userName, password } = req.body;
-
-    // checking employee is exists or not 
-    const user = await employee.findOne({ userName: userName });
-
-    if (!user) {
-        setErrorInTextFile({ errorName: "User not foud", errorMessage: "User not found or unauthorized !", date: new Date().toLocaleString(), route: req.originalUrl, method: req.method });
-        return res.status(401).json({ error: "User not found or unauthorized !" });
-    } else if (!(await user.comparedPassword(password))) {
-        setErrorInTextFile({ errorName: "Invalid credentials", errorMessage: "Username or password incorrect", date: new Date().toLocaleString(), route: req.originalUrl, method: req.method });
-        return res.status(401).json({ error: "Username or password incorrect" });
-    }
-
-    try {
-        const payload = {
-            id: employee.id,
-            username: employee.userName
-        }
-        const token = await generateToken(payload);
-        res.json({ token });
-    } catch (err) {
-        comsole.log(err);
         setErrorInTextFile({ errorName: err.name, errorMessage: err.message, date: new Date().toLocaleString(), route: req.originalUrl, method: req.method });
         res.status(500).json({ errorName: err.name, errorMessage: err.message });
     }
@@ -438,16 +420,23 @@ routes.post('/login', async (req, res) => {
 routes.get('/profile/:username', jwtMiddleWare, async function (req, res) {
     try {
         const username = req.params.username;
-        const response = await employee.findOne({ userName: username });
+        let user = await employee.findOne({ userName: username });
 
-        if (!response) {
-            res.status(404).json({ errorName: "User not foud" });
+        if (!user) {
+            setErrorInTextFile({ errorName: err.name, errorMessage: err.message, date: new Date().toLocaleString(), route: req.originalUrl, method: req.method });
+            return res.status(404).json({ errorName: "User not foud" });
         }
-        res.status(200).json(response);
+
+        if(user.role === 1) {
+            const admin = new adminModel(user);
+            user = admin;
+            console.log(user)
+        }
+        return res.status(200).json(user);
     } catch (err) {
         console.log(err);
         setErrorInTextFile({ errorName: err.name, errorMessage: err.message, date: new Date().toLocaleString(), route: req.originalUrl, method: req.method });
-        res.status(500).json({ errorName: err.name, errorMessage: err.message });
+        return res.status(500).json({ errorName: err.name, errorMessage: err.message });
     }
 })
 
