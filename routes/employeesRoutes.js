@@ -10,7 +10,7 @@ const adminModel = require('../models/admin-model');
 
 /**
  * @swagger
- * /api/employee/getEmployees:
+ * /api/employee/getAllEmployees:
  *   get:
  *     security:
  *           - BearerAuth: []
@@ -54,15 +54,15 @@ const adminModel = require('../models/admin-model');
  */
 
 // get method
-routes.get('/getEmployees', jwtMiddleWare, async function (req, res) {
+routes.get('/getAllEmployees', jwtMiddleWare, async function (req, res) {
     try {
         const pageNo = parseInt(req.query.pageNo);
         const pageSize = parseInt(req.query.pageSize);
         const sortColumn = req.query.sortColumn;
         const sortOrder = req.query.sortOrder;
         const skipRecords = pageNo == 1 ? 0 : (pageNo - 1) * pageSize;
-        const totalRecords = await employee.countDocuments({ role: '6a67595b6bec46b8c9099297' });
-        const data = await employee.find({ role: '6a67595b6bec46b8c9099297' }).limit(pageSize).skip(skipRecords).sort({ [sortColumn]: sortOrder });
+        const totalRecords = await employee.countDocuments({});
+        const data = await employee.find({}).limit(pageSize).skip(skipRecords).sort({ [sortColumn]: sortOrder });
         const displayColumns = ["firstName", "lastName", "role", "emailId", "gender"];
         res.status(200).json({ data, pageNo, pageSize, totalRecords, displayColumns });
     } catch (err) {

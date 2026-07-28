@@ -16,6 +16,7 @@ const { MAX_LOGIN_ATTEMPTS,
   LOGIN_LOCKOUT_DURATION_MINUTES,
   MIN_LOGIN_ATTEMPTS_WARNING
  } = require('.././constant/login-attempt.constants');
+ const  { isUserActive } = require('./../employee');
 
 /**
  * @swagger
@@ -57,6 +58,9 @@ routes.post('/getToken', async (req, res) => {
 
     // checking employee is exists or not
     const user = await employee.findOne({ userName: userName });
+
+    if (!(await isUserActive(user.id)))
+      return res.status(500).json({ error: 'User is not active, please contact to administartor.' });
 
     if(await isLoginLockoutsStatusIsExpired(user.id))
       await resetLoginLockoutStatusByUserId(user.id)
