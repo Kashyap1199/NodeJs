@@ -31,7 +31,8 @@ const options = {
     apis: [
         './routes/loginRoutes.js',
         './routes/employeesRoutes.js',
-        './routes/dashboardRutes.js'
+        './routes/dashboardRutes.js',
+        './routes/email-verification-routes.js'
     ],
 };
 

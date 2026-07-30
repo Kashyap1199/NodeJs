@@ -4,6 +4,7 @@ const Employee = require('./models/employee-model');
 const AdminModel = require('./models/admin-model');
 const DesignationModel = require('./models/designation-model');
 const RoleModel = require('./models/role-model');
+const EmailVerification =  require('./models/email-verification-model');
 const LoginAttemptLogModel = require('./models/login-attempt-log-model');
 const LoginLockoutStatusModel = require('./models/login-lockout-status-model');
 const mongoDbUrl = process.env.MONGODBURL;
@@ -37,6 +38,7 @@ db.on('connected', async () => {
         await RoleModel.createCollection();
         await LoginAttemptLogModel.createCollection();
         await LoginLockoutStatusModel.createCollection();
+        await EmailVerification.createCollection();
         await seedInitialData();
     } catch (err) {
         console.log('Collection initialization error: ' + err.message);

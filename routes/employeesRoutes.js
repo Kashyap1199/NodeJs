@@ -7,7 +7,7 @@ const bcrypt = require('bcrypt');
 const { upload } = require('../multer');
 const fs = require('fs');
 const adminModel = require('../models/admin-model');
-
+const { addEmailVerification } = require('./../services/email-service');
 /**
  * @swagger
  * /api/employee/getAllEmployees:
@@ -148,7 +148,6 @@ routes.post('/addEmployee', upload.single('image'), async (req, res) => {
     try {
         const data = req.body;
         const newEmployee = new employee(data);
-        newEmployee.isActive = true;
         // if image/file is exists then converting in base64
         if (req.file) {
             const employeeImage = fs.readFileSync(req.file.path);
@@ -158,7 +157,8 @@ routes.post('/addEmployee', upload.single('image'), async (req, res) => {
                 contentType: "base64"
             }
         }
-        await newEmployee.save();
+        const newUser = await newEmployee.save();
+        await addEmailVerification(newUser); // add email verification details
         res.status(200).json({ message: "New employee successfully inserted !" });
     } catch (err) {
         console.log('Error: ' + err);

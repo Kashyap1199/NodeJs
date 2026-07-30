@@ -59,6 +59,9 @@ app.use('/api/employee', Employee);
 const Dashboard = require('./routes/dashboardRutes');
 app.use('/api/dashboard', Dashboard);
 
+const EmailVerification = require('./routes/email-verification-routes');
+app.use('/api/email-verification', EmailVerification);
+
 app.listen(process.env.PORT, () => {
     console.log('Application running on ' + process.env.PORT + ' port');
 });

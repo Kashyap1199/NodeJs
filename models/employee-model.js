@@ -70,7 +70,7 @@ const employeeSchema = new mongoose.Schema({
     },
     isActive : {
         type: Boolean,
-        default: true
+        default: false
     }
 }, {
     timestamps: { createdAt: 'createdDate', updatedAt: 'updatedDate' }
