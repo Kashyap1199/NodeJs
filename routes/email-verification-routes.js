@@ -1,34 +1,70 @@
 const express = require('express');
 const routes = express.Router();
 const { setErrorInTextFile } = require('../errortext');
-const emailVerificationModel = require('../models/email-verification-model');
+const emailVerification = require('../models/email-verification-model');
+const employee = require('../models/employee-model');
 
-routes.get('email-verification', async (req, res) => {
+/**
+ * @swagger
+ * /api/email-verification:
+ *   get:
+ *    tags:
+ *      - Employee email verification
+ *    summary: Verify email using token
+ *    description: This endpoint verifies the email of a user using a token sent to their email address. The token is passed as a query parameter in the request URL. If the token is valid and not expired, the user's email is marked as verified.
+ *    parameters:
+ *     - in: query
+ *       name: token
+ *       schema:
+ *       type: string
+ *       required: true
+ *    responses:
+ *        200:
+ *          description: Email verified successfully.
+ *        400:
+ *          description: Invalid or expired token.
+ *        500:
+ *          description: Internal server error.
+ *        401:
+ *          description: Unauthorized access.
+ */
+routes.get('', async (req, res) => {
 
   try {
     const token = req.query.token;
 
     const verification =
-        await emailVerificationModel.findOne({ token });
+        await emailVerification.findOne({ token });
 
     if (!verification)
         return res.status(400).json({
             message: "Invalid token"
         });
 
-    if (verification.expiresAt < new Date())
+    if(verification.isEmailVerified)
+        return res.status(400).json({
+            message: "Email already verified"
+        });
+
+    if (verification.expireAt < new Date())
         return res.status(400).json({
             message: "Token expired"
         });
 
-    await User.findByIdAndUpdate(
-        verification.userId,
+    await emailVerification.findByIdAndUpdate(
+        verification._id,
         {
             isEmailVerified: true,
             isEmailVerificationInviteExpired: true
         });
 
-    res.json({
+    await employee.findByIdAndUpdate(
+        verification.userId,
+        {
+           isActive: true
+        });
+
+    res.status(200).json({
         message: "Email verified successfully."
     });
   } catch (err) {
